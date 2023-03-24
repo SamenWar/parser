@@ -134,3 +134,4 @@
         comp('f4.csv');
 
 
+$driver->quit();
