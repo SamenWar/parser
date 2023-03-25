@@ -55,44 +55,75 @@
 
         }
 
-        function comp($filename){
-                        // открываем исходный csv файл для чтения
-                        $source = fopen($filename, 'r');
-
-                        // открываем целевой csv файл для записи
-                        $target = fopen('target.csv', 'a+');
-
-                        // записываем заголовок целевого csv файла
-                        $header = array('ID', 'Домен', 'ИКС', 'Посещаемость', 'MozRank', 'Majestic Citation Flow', 'Majestic Trust Flow', 'Ahrefs UR', 'Ahrefs DR', 'Ahrefs входящих уникальных', 'LinkPad Акцепторы', 'LinkPad Доноры', 'LinkPad Заспамленность', 'Страна', 'Язык', 'Рубрика и Описание', 'Цена');
-                        fputcsv($target, $header, ';');
-
-                        // читаем строки из исходного csv файла
-                        while ($row = fgetcsv($source, 0, ';')) {
-                            // разбиваем столбец MajesticSeo на Majestic Citation Flow и Majestic Trust Flow
-                            $majestic = explode(' ', $row[5]);
-                            $row[5] = $majestic[0]; // Majestic Citation Flow
-                            $row[] = $majestic[1]; // Majestic Trust Flow
-
-                            // разбиваем столбец Ahrefs на Ahrefs UR, Ahrefs DR и Ahrefs входящих уникальных
-                            $ahrefs = explode(' ', $row[6]);
-                            $row[6] = $ahrefs[0]; // Ahrefs UR
-                            $row[] = $ahrefs[1]; // Ahrefs DR
-                            $row[] = $ahrefs[2]; // Ahrefs входящих уникальных
-
-                            // разбиваем столбец LinkPad на LinkPad Акцепторы, LinkPad Доноры и LinkPad Заспамленность
-                            $linkpad = explode(' ', $row[7]);
-                            $row[7] = $linkpad[0]; // LinkPad Акцепторы
-                            $row[] = $linkpad[1]; // LinkPad Доноры
-                            $row[] = $linkpad[2]; // LinkPad Заспамленность
-
-                            // разбиваем столбец Страна / Язык на Страна и Язык
-                            $country = explode('/', $row[8]);
-                            $row[8] = trim($country[0]); // Страна
-                            $row[] = trim($country[1]); // Язык
-
-                            // записываем пр
-
+        function comp(){
+            // собрать все CSV файлы в один массив
+            $combinedData = array();
+            $dir = "C:\OSPanel\domains\parser";
+            if (is_dir($dir)) {
+                if ($dh = opendir($dir)) {
+                    while (($file = readdir($dh)) !== false) {
+                        if (pathinfo($file, PATHINFO_EXTENSION) == "csv") {
+                            $handle = fopen($dir . "/" . $file, "r");
+                            while (($data = fgetcsv($handle, 0, ";")) !== false) {
+                                $combinedData[] = $data;
+                            }
+                            fclose($handle);
+                        }
+                    }
+                    closedir($dh);
+                }
             }
+
+            // parse the combined CSV data
+            $parsedData = array();
+            foreach ($combinedData as $row) {
+                $parsedRow = array();
+                $parsedRow['ID'] = $row[0];
+                $parsedRow['Домен'] = $row[1];
+                $parsedRow['ИКС'] = $row[2];
+                $parsedRow['Посещаемость'] = $row[3];
+                $parsedRow['MozRank'] = $row[4];
+
+                // parse MajesticSeo data
+                $majesticSeoData = explode(";", $row[5]);
+                $parsedRow['Majestic Citation Flow'] = $majesticSeoData[0];
+                $parsedRow['Majestic Trust Flow'] = $majesticSeoData[1];
+
+                // parse Ahrefs data
+                $ahrefsData = explode(";", $row[6]);
+                $parsedRow['Ahrefs UR'] = $ahrefsData[0];
+                $parsedRow['Ahrefs DR'] = $ahrefsData[1];
+                $parsedRow['Ahrefs входящих уникальных'] = $ahrefsData[2];
+
+                // parse LinkPad data
+                $linkPadData = explode(";", $row[7]);
+                $parsedRow['LinkPad Акцепторы'] = $linkPadData[0];
+                $parsedRow['LinkPad Доноры'] = $linkPadData[1];
+                $parsedRow['LinkPad Заспамленность'] = $linkPadData[2];
+
+                // parse Страна / Язык data
+                $countryAndLanguageData = explode(";", $row[8]);
+                $parsedRow['Страна'] = $countryAndLanguageData[0];
+                $parsedRow['Язык'] = $countryAndLanguageData[1];
+
+                $parsedRow['Рубрика и Описание'] = $row[9];
+                $parsedRow['Цена'] = $row[10];
+
+                $parsedData[] = $parsedRow;
+            }
+
+            // write the parsed data to a new CSV file
+            $outputFile = "C:/OSPanel/domains/parser/file.csv";
+            $outputHandle = fopen($outputFile, "w");
+            $headerRow = array_keys($parsedData[0]);
+            fputcsv($outputHandle, $headerRow, ";");
+            foreach ($parsedData as $row) {
+                fputcsv($outputHandle, $row, ";");
+            }
+            fclose($outputHandle);
+
+
+
         }
 
 
@@ -104,7 +135,6 @@
         $filter3 = $driver->findElement(WebDriverBy::cssSelector('input[type=radio][value=old]'));//снг
         $filter3->click();
         parse('f1');
-        comp('f1.csv');
 
 
 
@@ -113,7 +143,6 @@
         $filter3 = $driver->findElement(WebDriverBy::cssSelector('input[type=radio][value=new]'));
         $filter3->click();
         parse('f2');
-        comp('f2.csv');
 
         $filter1 = $driver->findElement(WebDriverBy::cssSelector('input[name="foreign"][value="1"]'));//снг
         $filter1->click();
@@ -122,7 +151,6 @@
         $filter3 = $driver->findElement(WebDriverBy::cssSelector('input[type=radio][value=old]'));//снг
         $filter3->click();
         parse('f3');
-        comp('f3.csv');
 
 
 
@@ -131,7 +159,8 @@
         $filter3 = $driver->findElement(WebDriverBy::cssSelector('input[type=radio][value=new]'));//снг
         $filter3->click();
         parse('f4');
-        comp('f4.csv');
+
+        comp();
 
 
 $driver->quit();
